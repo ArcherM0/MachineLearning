@@ -1,51 +1,53 @@
-# Import the packages we need for the computation
+"""
+Logistic Regression
+"""
+# Author: Archer Mo
+# Reference: scikit-learn/sklearn/linear_model/logistic.py
+      
+
 import numpy as np
-import random
-import matplotlib.pyplot as plt 
-from mpl_toolkits.mplot3d import Axes3D
-from sklearn import datasets
-
-# load the dataset
-iris = dataset.load_iris()
-
-# only look at the first two features
-X = iris.data
-Y = iris.target
+from scipy import optimize, sparse
+from scipy.special import expit
 
 
+# Define an intercept in case there is one
+def _intercept(w, X, y):
+    c = 0.
+    if w.size == X.shape[1] + 1:
+        c = w[1]
+        w = w[1:]
+    
+    z = np.dot(X, w) + c
+    yz = y * z
+    return w, c, yz
 
-theta = np.zeros(X.shape[1])
-m = X.shape[0]
-n_iterations = 2000
-alpha = 0.5
-cost_history = np.zeros(n_iterations)
-theta_history = np.zeros(n_iterations)
+def _logistic_loss_and_grad(w, X, y, alpha, sample_weight = None):
+    n_samples, n_features = X.shape
+    grad = np.empty(w)
+    w, c, z = _intercept(w, X, yz)
+    
+    if sample_weight is None:
+        sample_weight = np.ones(n_samples)
+    
+    # Logistic loss with regularization
+    loss = -np.sum(sample_weight * log_logistic(yz)) + .5 * alpha * np.dot(w, w)
+    
+    z = expit(yz)
+    z0 = sample_weight * (z - 1) * y
+    
+    grad[:n_features] = np.dot(X.T, z0) + alpha * w
+    
+    if grad.shape[0] > n_features:
+        grad[1] = z0.sum()
+    return loss, grad
 
-for i in range(n_iterations):
-    theta_history[i,:] = gradient_Descent(theta, alpha, X, y)
-    cost_history[i] = cost(X, y, theta, m)
 
-fig,ax = plt.subplots(figsize=(12,8))
-
-ax.set_ylabel('J(Theta)')
-ax.set_xlabel('Iterations')
-_=ax.plot(range(n_iter),cost_history,'b.')
-
-"""
-def sigmoid(z):
-    return 1 / (1 + np.exp(-z))
-
-def logistic_loss_and_grad(X, y, theta, m):
-    h = sigmoid(np.dot(X, theta))
-    return (-y * np.log(h) - (1 - y)* np.log(1 - h)) / m
-
-def gradient_Descent(theta, alpha, x , y):
-    h = sigmoid(np.matmul(x, theta))
-    gradient = np.dot(X.T, (h - y)) / m;
-    theta = theta - alpha * gradient
-    return theta 
-"""
-
+        
+    
+    
+    
+    
+"""        
 
 class LogisticRegression:
     def__init__(self, alpha, iterations, fit_intercept = True):
@@ -70,7 +72,7 @@ class LogisticRegression:
             self.theta = self.theta - self.alpha * gradient
             
             
-            
+"""
             
         
         
