@@ -64,6 +64,13 @@ class LogisticRegression:
         n_sample, n_features = X.shape
         self.theta = np.zeros(X.shape[1])
         for i in range(self.iterations):
+            z = np.dot(X, self.theta)
+            h = self.__sigmoid(z)
+            gradient = np.dot(X.T, (h - y)) / n_sample
+            self.theta = self.theta - self.alpha * gradient
+            
+            
+            
             
         
         
