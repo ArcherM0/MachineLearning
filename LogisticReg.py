@@ -1,5 +1,5 @@
 """
-Logistic Regression
+Logistic Regression (Binomial Case)
 """
 # Author: Archer Mo
 # Reference: scikit-learn/sklearn/linear_model/logistic.py
