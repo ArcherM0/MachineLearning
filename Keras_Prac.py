@@ -14,24 +14,24 @@ from keras.datasets import fashion_mnist
 label_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 
                'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
 
-
-datagen = ImageDataGenerator(
-    rescale = 1./255
-    featurewise_center = True,
-    featurewise_std_normalization = True,
-    rotation_range = 10,
-    horizontal_flip = True)
-
-
-datagen.fit(train_images)
-
-test_images = teat_images / 255.0
+train_images = train_images / 255.0
+test_images = test_images / 255.0
 
 model = keras.sequential([
   keras.layers.Flatten(input_shape = (28,28)),
   keras.layers.Dense(128, activation = tf.nn.relu),
   keras.layers.Dense(10, activation = tf.nn.softmax)
 ])
+
+model.compile(optimizer=tf.train.AdamOptimizer(), 
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
+
+model.fit(train_images, train_labels, epochs = 5)
+
+test_loss, test_acc = model.evaluate(test_images, test_labels)
+
+
 
 
 
