@@ -1,3 +1,6 @@
+"""Logistic Regression using non-vectorized method
+   Author: Archer M
+"""
 
 import numpy as np
 
