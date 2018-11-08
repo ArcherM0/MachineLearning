@@ -1,4 +1,4 @@
-"""Logistic Regression with gradient descent
+"""Logistic Regression, 2-class version
    Author: Archer M
 """
 
@@ -7,29 +7,19 @@ from scipy.special import expit
 
 class LogisticRegression:
    
-   def __init__(self, X, Y, aplpha, num_iterations):
+   def __init__(self, w, X, Y, b, aplpha, num_iterations):
+      self.w = w
       self.X = X
       self.Y = Y
+      self.b = b
       self.alpha = alpha
       self.num_iterations = num_iterations
-      
-   def _initialization(self, X):
-    
-       """ Initializes weights w, intercept b, and z for the sigmoid function
-       w : ndarray, shape (n_features,1)
-        Coefficient vector.
-       X : {array-like, sparse matrix}, shape (n_samples, n_features)
-        Training data.
-       """
-      w = np.zeros((X.shape[0], 1))
-      b = 0.
-      
-      return w, b
-   
+     
    def _logistic_cost_and_grads(self, w, b, X, Y):
       
        """ Computes the logistic loss and gradients
-       """
+       """   
+      
       z = np.dot(w.T, X) + b 
       A = expit(z)
       cost = np.sum(-Y * np.log(A) - (1-Y) * np.log(1-A)) / X.shape[1]
