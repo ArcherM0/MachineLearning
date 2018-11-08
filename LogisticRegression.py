@@ -7,13 +7,14 @@ from scipy.special import expit
 
 class LogisticRegression:
    
-   def __init__(self, aplpha, num_iterations):
+   def __init__(self, X, Y, aplpha, num_iterations):
+      self.X = X
+      self.Y = Y
       self.alpha = alpha
       self.num_iterations = num_iterations
-    
+      
    def _initialization(self, X):
     
-
        """ Initializes weights w, intercept b, and z for the sigmoid function
        w : ndarray, shape (n_features,1)
         Coefficient vector.
@@ -21,21 +22,19 @@ class LogisticRegression:
         Training data.
        """
       w = np.zeros((X.shape[0], 1))
-      b = 0
+      b = 0.
       
       return w, b
    
-
    def _logistic_cost_and_grads(self, w, b, X, Y):
       
        """ Computes the logistic loss and gradients
        """
-      n_samples = X.shape[1]
       z = np.dot(w.T, X) + b 
       A = expit(z)
-      cost = np.sum(-Y * np.log(A) - (1-y) * np.log(1-A)) / n_samples
-      dw = np.dot(X, (A-Y).T) / n_samples
-      db = np.sum(A-Y) / n_samples
+      cost = np.sum(-Y * np.log(A) - (1-Y) * np.log(1-A)) / X.shape[1]
+      dw = np.dot(X, (A-Y).T) / X.shape[1]
+      db = np.sum(A-Y) / X.shape[1]
    
       cost = np.squeeze(cost)
       grads = {"dw": dw,
@@ -67,9 +66,8 @@ class LogisticRegression:
       return params, grads, cost
    
    def _predict(self, w, b, X):
-      
-      n_samples = X.shape[1]
-      Y_pred = np.zeros((1, m))
+     
+      Y_pred = np.zeros((1, X.shape[1]))
       
       params, grads, cost = _optimization(w, b, X, Y, num_iterations)
         
@@ -86,13 +84,21 @@ class LogisticRegression:
       
       return Y_pred
    
-   
-         
-         
+   def _score(self, Y):
+      
+      Y_pred = _predict(w, b, X)
+      Score = 100 - np.mean(np.abs(Y_pred - Y)) * 100
+      
+      out = {"costs": costs,
+      "Y_prediction" : Y_pred, 
+      "Score": Score,       
+      "w" : w, 
+      "b" : b,
+      }
     
-         
-
+      return out
    
+
 """
 # Sigmoid function
 def sigmoid(z):
