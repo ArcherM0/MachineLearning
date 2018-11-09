@@ -1,4 +1,4 @@
-"""Logistic Regression, 2-class version
+"""Logistic Regression, binomial version
    Author: Archer M
 """
 
@@ -44,11 +44,11 @@ def _logistic_cost_and_grad(w, b, X, Y):
    
    return cost, grads
 
-def _optimize(w, b, X, Y, alpha, max_iter):
+def _optimize(w, b, X, Y, alpha, n_iter):
    
    cost = []
    
-   for i in range(max_iter):
+   for i in range(n_iter):
       cost, grads = _logistic_cost_and_grad(w, b, X, Y)
       dw, db = grads["dw"], grad["db"]
       ### simultaneously update w and b
@@ -66,28 +66,23 @@ def _predict(w, b, X):
    A = expit(z)
    Y_pred = []
    
-   
-   
-   
-   
-   
-   
-   
-   
+   ### threshold = 0.5
+   if A[i,0] > 0.5:
+      Y_pred[i,0] = 1
+   else:
+      Y_pred[i,0] = 0
+     
+   return Y_pred
 
 
-def model(X_train, Y_train, X_test, Y_test, num_iterations = 2000, learning_rate = 0.5, print_cost = False):
+def model(X_train, Y_train, X_test, Y_test, n_iter = 2000, alpha = 0.5):
 
     # initialize parameters with zeros
-    w, b = initialize_with_zeros(X_train.shape[0])
+    w, b = initialize(X_train)
 
     # Gradient descent
-    parameters, grads, costs = optimize(w, b, X_train, Y_train, num_iterations, learning_rate, print_cost = False)
-    
-    # Retrieve parameters w and b from dictionary "parameters"
-    w = parameters["w"]
-    b = parameters["b"]
-    
+    w, b, cost = optimize(w, b, X_train, Y_train, n_iter, alpha)
+      
     # Predict test/train set examples
     Y_prediction_test = predict(w, b, X_test)
     Y_prediction_train = predict(w, b, X_train)
@@ -97,17 +92,17 @@ def model(X_train, Y_train, X_test, Y_test, num_iterations = 2000, learning_rate
     print("test accuracy: {} %".format(100 - np.mean(np.abs(Y_prediction_test - Y_test)) * 100))
 
     
-    out = {"costs": costs,
+    out = {"costs": cost,
          "Y_prediction_test": Y_prediction_test, 
          "Y_prediction_train" : Y_prediction_train, 
          "w" : w, 
          "b" : b,
-         "learning_rate" : learning_rate,
-         "num_iterations": num_iterations}
+         "learning_rate" : alpha,
+         "num_iterations": n_iter}
     
     return out
 
-"""
+
       
   
   
