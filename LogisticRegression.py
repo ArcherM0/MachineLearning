@@ -59,7 +59,7 @@ def _optimize(w, b, X, Y, alpha, max_iter):
       for i % 100 == 0:
          cost.append(cost)
          
-   return w, b
+   return w, b, cost
 
 def _predict(w, b, X):
    z = np.dot(X, w)
