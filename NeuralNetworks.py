@@ -49,6 +49,9 @@ def _forward_propagation(X, parameters):
   L = len(parameters) // 2
   
   for l in range(1, L):
+    A_prev = A
+    W, b = parameters['W' + str(l)], parameters['b' + str(l)]
+    
     
 
 
