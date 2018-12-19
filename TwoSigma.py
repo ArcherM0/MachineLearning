@@ -63,25 +63,29 @@ Y = (market_train.returnsOpenNextMktres10 >= 0).astype('int8')
 # NN
 from keras.models import Sequential
 from keras.layers import Dense, Activation
+adam = keras.optimizers.Adam(lr=0.05, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
 
-model = Sequential([
-    Dense(32, input_shape=(784,)),
-    Activation('relu'),
-    Dense(10),
-    Activation('softmax'),
-])
+model = Sequential()
+model.add(Dense(32, input_dim=12, activation='relu'))
+model.add(Dropout(0.5))
+model.add(Dense(32, activation='relu'))
+model.add(Dropout(0.5))
+model.add(Dense(1, activation='tanh'))
+
+model.compile(loss='binary_crossentropy',
+              optimizer = 'adam',
+              metrics=['accuracy'])
+
+model.summary()
 
 X_train, X_test = model_selection.train_test_split(X.index.values, test_size = 0.05, random_state=23)
 
-from keras.callbacks import EarlyStopping, ModelCheckpoint
-
-check_point = ModelCheckpoint('model.hdf5',verbose=True, save_best_only=True)
-early_stop = EarlyStopping(patience=5,verbose=True)
 model.fit(X.loc[X_train],Y.loc[X_train],
           validation_data=(X.loc[X_test],Y.loc[X_test]),
-          epochs=4,
-          verbose=True,
-          callbacks=[early_stop,check_point]) 
+          epochs=20,
+          batch_size = 128)
+
+score = model.evaluate(X.loc[X_test],Y.loc[X_test], batch_size=128)
 
 ### submission
 
