@@ -8,11 +8,10 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import gc
 
-from lightgbm import LGBMClassifier
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import accuracy_score
-pd.set_option('max_columns', 50)
-pd.options.mode.chained_assignment = None
+pd.set_option('max_columns', 40)
+
 import os
 print(os.listdir("../input"))
 
@@ -28,7 +27,6 @@ env = twosigmanews.make_env()
 market['close/open'] = market['close'] / market['open']
 market['assetOpenMedian'] = market.groupby('assetCode')['open'].transform('median')
 market['assetCloseMedian'] = market.groupby('assetCode')['close'].transform('median')
-
     
 for i, row in market.loc[market['close/open'] >= 1.5].iterrows():
     if np.abs(row['assetOpenMedian'] - row['open']) > np.abs(row['assetCloseMedian'] - row['close']):
@@ -44,8 +42,8 @@ for i, row in market.loc[market['close/open'] <= 0.5].iterrows():
         
 
 fillna_cols = ['returnsClosePrevMktres1','returnsOpenPrevMktres1','returnsClosePrevMktres10','returnsOpenPrevMktres10']
-market = market.sort_values(by = ['assetCode', 'time'], ascending = [True, True])
 
+market = market.sort_values(by = ['assetCode', 'time'], ascending = [True, True])
 for i in market[fillna_cols]:
     market[i] = market[i].fillna(method = 'ffill')
     
@@ -53,35 +51,25 @@ for i in market[fillna_cols]:
 market_train = market.drop(['assetOpenMedian','assetCloseMedian'], axis = 1)
 
 num_cols = [c for c in market_train.columns if c not in['assetName','assetCode','time','universe']]
+feat_cols = [c for c in market_train.columns if c not in['assetName','assetCode','time','universe','returnsOpenNextMktres10']]
 
 scaler = StandardScaler()
-
 market_train[num_cols] = scaler.fit_transform(market_train[num_cols])
 
-feat_cols = [c for c in market_train.columns if c not in['assetName','assetCode','time','universe','returnsOpenNextMktres10']]
 
 X = market_train[feat_cols]
 Y = (market_train.returnsOpenNextMktres10 >= 0).astype('int8')
 
 # NN
-from keras.models import Model
-from keras.layers import Input, Dense, Embedding, Concatenate, Flatten, BatchNormalization
-from keras.losses import binary_crossentropy, mse
+from keras.models import Sequential
+from keras.layers import Dense, Activation
 
-numerical_inputs = Input(shape=(12,), name='num')
-numerical_logits = numerical_inputs
-numerical_logits = BatchNormalization()(numerical_logits)
-
-numerical_logits = Dense(128,activation='relu')(numerical_logits)
-numerical_logits = Dense(64,activation='relu')(numerical_logits)
-
-logits = Dense(64,activation='relu')(numerical_logits)
-out = Dense(1, activation='tanh')(logits)
-
-model = Model(inputs = [numerical_inputs], outputs=out)
-model.compile(optimizer='adam',loss=binary_crossentropy)
-
-model.summary()
+model = Sequential([
+    Dense(32, input_shape=(784,)),
+    Activation('relu'),
+    Dense(10),
+    Activation('softmax'),
+])
 
 X_train, X_test = model_selection.train_test_split(X.index.values, test_size = 0.05, random_state=23)
 
@@ -91,31 +79,9 @@ check_point = ModelCheckpoint('model.hdf5',verbose=True, save_best_only=True)
 early_stop = EarlyStopping(patience=5,verbose=True)
 model.fit(X.loc[X_train],Y.loc[X_train],
           validation_data=(X.loc[X_test],Y.loc[X_test]),
-          epochs=2,
+          epochs=4,
           verbose=True,
           callbacks=[early_stop,check_point]) 
-
-'''
-lgb = LGBMClassifier(
-    n_jobs = 4,
-    ojective='binary',
-    boosting='gbdt',
-    learning_rate = 0.05,
-    num_leaves = 80,
-    n_estimators = 200,
-    bagging_fraction = 0.8,
-    feature_fraction = 0.9)
-
-lgb.fit(X.loc[X_train],Y.loc[X_train])   
-
-print("lgb accuracy : %f" % \
-      accuracy_score(lgb.predict(X.loc[X_test]),
-                     Y.loc[X_test]))
-                     
-print("lgb AUC : %f" % \
-      roc_auc_score(Y.loc[X_test].values,
-                    lgb.predict_proba(X.loc[X_test])[:, 1]))
-'''
 
 ### submission
 
