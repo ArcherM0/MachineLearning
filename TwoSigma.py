@@ -6,6 +6,7 @@ from itertools import chain
 from sklearn import model_selection
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
+pd.options.mode.chained_assignment = None
 import gc
 
 from sklearn.metrics import roc_auc_score
@@ -21,9 +22,9 @@ env = twosigmanews.make_env()
 
 (market, news) = env.get_training_data()
 
+# market = market.loc[market['time'] >= '2010-01-01 00:00:00+0000'].reset_index(drop = True)
 
 ### prepare market data
-
 market['close/open'] = market['close'] / market['open']
 market['assetOpenMedian'] = market.groupby('assetCode')['open'].transform('median')
 market['assetCloseMedian'] = market.groupby('assetCode')['close'].transform('median')
@@ -53,24 +54,34 @@ market_train = market.drop(['assetOpenMedian','assetCloseMedian'], axis = 1)
 num_cols = [c for c in market_train.columns if c not in['assetName','assetCode','time','universe']]
 feat_cols = [c for c in market_train.columns if c not in['assetName','assetCode','time','universe','returnsOpenNextMktres10']]
 
+
 scaler = StandardScaler()
 market_train[num_cols] = scaler.fit_transform(market_train[num_cols])
 
+train_indices, val_indices = train_test_split(market_train.index.values,test_size=0.05, random_state=23)
 
-X = market_train[feat_cols]
-Y = (market_train.returnsOpenNextMktres10 >= 0).astype('int8')
+def get_input(market_df, indices):
+    X = market_df.loc[indices, feat_cols].values
+    y = (market_df.loc[indices,'returnsOpenNextMktres10'] >= 0).values
+    r = market_df.loc[indices,'returnsOpenNextMktres10'].values
+    u = market_df.loc[indices, 'universe']
+    d = market_df.loc[indices, 'time'].dt.date
+    return X,y,r,u,d
+    
+X_train,y_train,r_train,u_train,d_train = get_input(market_train, train_indices)
+X_valid,y_valid,r_valid,u_valid,d_valid = get_input(market_train, val_indices)
+
 
 # NN
+import keras
 from keras.models import Sequential
-from keras.layers import Dense, Activation
-adam = keras.optimizers.Adam(lr=0.05, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
+from keras.layers import Dense, Activation,Dropout
 
 model = Sequential()
-model.add(Dense(32, input_dim=12, activation='relu'))
-model.add(Dropout(0.5))
-model.add(Dense(32, activation='relu'))
-model.add(Dropout(0.5))
-model.add(Dense(1, activation='tanh'))
+model.add(Dense(128, input_dim=12, activation='relu'))
+model.add(Dense(64, activation='relu'))
+model.add(Dense(64, activation='relu))
+model.add(Dense(1, activation='sigmoid'))
 
 model.compile(loss='binary_crossentropy',
               optimizer = 'adam',
@@ -78,14 +89,42 @@ model.compile(loss='binary_crossentropy',
 
 model.summary()
 
-X_train, X_test = model_selection.train_test_split(X.index.values, test_size = 0.05, random_state=23)
+# X_train, X_test = model_selection.train_test_split(X.index.values, test_size = 0.05, random_state=23)
 
-model.fit(X.loc[X_train],Y.loc[X_train],
-          validation_data=(X.loc[X_test],Y.loc[X_test]),
-          epochs=20,
-          batch_size = 128)
+from keras.callbacks import EarlyStopping, ModelCheckpoint
 
-score = model.evaluate(X.loc[X_test],Y.loc[X_test], batch_size=128)
+check_point = ModelCheckpoint('model.hdf5',verbose=True, save_best_only=True)
+early_stop = EarlyStopping(patience=5,verbose=True)
+
+model.fit(X_train,y_train.astype(int),
+          validation_data=(X_valid,y_valid.astype(int)),
+          epochs=2,
+          batch_size = 128,
+          verbose=True,
+          callbacks=[early_stop,check_point])
+
+# score = model.evaluate(X_valid,y_valid.astype(int), batch_size=128)
+# score
+
+import matplotlib.pyplot as plt
+
+model.load_weights('model.hdf5')
+confidence_valid = model.predict(X_valid)[:,0]*2-1
+print(accuracy_score(confidence_valid>0,y_valid))
+plt.hist(confidence_valid, bins='auto')
+plt.title("predicted confidence")
+
+
+r_valid = r_valid.clip(-1,1)
+x_t_i = confidence_valid * r_valid * u_valid
+data = {'day' : d_valid, 'x_t_i' : x_t_i}
+df = pd.DataFrame(data)
+x_t = df.groupby('day').sum().values.flatten()
+mean = np.mean(x_t)
+std = np.std(x_t)
+score_valid = mean / std
+print(score_valid)
+
 
 ### submission
 
@@ -95,36 +134,25 @@ for (market_obs_df, news_obs_df, predictions_template_df) in env.get_prediction_
     n_days += 1
     if n_days % 50 == 0:
         print (n_days, end = ' ')
-        
-    market_obs_df['close/open'] = market_obs_df['close']/market_obs_df['open']
+    
+    
+    market_obs_df['close/open'] = market_obs_df['close'] / market_obs_df['open']
+    
+    scaler = StandardScaler()
+    
+    feat_cols = [c for c in market_obs_df.columns if c not in['assetName','assetCode','time','universe']]
+    
+    market_obs_df[feat_cols] = scaler.fit_transform(market_obs_df[feat_cols])
     
     X_SUB = market_obs_df[feat_cols]
-    
-    for i in X_SUB.columns:
-        X_SUB[i] = X_SUB[i].fillna(method = 'ffill')
 
-    for i in X_SUB.columns:
-        X_SUB[i] = X_SUB[i].fillna(method = 'bfill')
- 
-    news_obs_df = news_prep(news_obs_df)
-    news_index = unstack_assetcodes(news_obs_df)
-    news_merge = merge_news_index(news_obs_df, news_index)
-    news_merge_value = group_news_value(news_merge)
-    market_obs_df['close/open'] = market_obs_df['close']/market_obs_df['open']
-    market_news_merge = merge_data(market_obs_df, news_merge_value)
-
-
-    X_SUB = market_news_merge[feat_cols]
-    
     for i in X_SUB.columns:
         X_SUB[i] = X_SUB[i].fillna(method = 'ffill')
 
     for i in X_SUB.columns:
         X_SUB[i] = X_SUB[i].fillna(method = 'bfill')
     
-  
-    lp = lgb.predict_proba(X_SUB.values)
-    confidence = 2 * lp[:,1] - 1
+    confidence = model.predict(X_SUB.values)[:,0]*2-1
     
     preds = pd.DataFrame({'assetCode':market_obs_df['assetCode'], 'confidence':confidence})
     predictions_template_df = predictions_template_df.merge(preds,how='left').drop('confidenceValue',axis=1).fillna(0).rename(columns={'confidence':'confidenceValue'})
@@ -132,4 +160,3 @@ for (market_obs_df, news_obs_df, predictions_template_df) in env.get_prediction_
     env.predict(predictions_template_df)
 
 env.write_submission_file()
-
